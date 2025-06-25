@@ -1,6 +1,6 @@
 import {
     Checkbox,
-    DefaultButton,
+    DefaultButton, PrimaryButton,
     ProgressIndicator,
     TextField
 } from '@fluentui/react';
@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import {delay, withDisplayName} from '../utils';
 import {RouteProps} from './type';
 import {fetchZTApk} from "./zerotier/fetchzt";
+import AdbWebUsbBackend from '@yume-chan/adb-backend-webusb';
 import {Adb} from "@yume-chan/adb";
 import {AdbEventLogger, Connect} from "../components";
 
@@ -33,6 +34,7 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
     const [device, setDevice] = useState<Adb | undefined>();
 
     const [isGetProp, setIsProp] = useState<boolean>(false);
+    const [isTroubleshooting, setIsTroubleshooting] = useState<boolean>(false);
 
     const [autoAdvance, setAutoAdvance] = useState<boolean>(true);
 
@@ -135,10 +137,28 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
             }),
             body: JSON.stringify(devicePropSend)
         }).catch(err => {
-            console.error('Not able to get send device property: ', err);
+            console.error('Not able to send retrieved device property: ', err);
         });
         return response
     },[device])
+
+    const sentDeviceInfo = useCallback(async (serial, ip, apiUrl) => {
+        let deviceInfoToSend = {
+            "serial": serial,
+            "email": email,
+            "ip": ip
+        }
+        let response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: new Headers({
+                'Content-Type': 'application/json; charset=UTF-8'
+            }),
+            body: JSON.stringify(deviceInfoToSend)
+        }).catch(err => {
+            console.error('Not able to send device info: ', err);
+        });
+        return response
+    }, [device])
 
     const getDumpSys = useCallback(async (serial, apiUrl) => {
         const dumpSys = await device!.exec('dumpsys > /data/local/tmp/dumpsys.txt 2>&1; cat /data/local/tmp/dumpsys.txt');
@@ -169,6 +189,17 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
         // Function below is responsible for extract and send dumpsys data if you want to turn it on just uncomment it
         // await getDumpSys(serial, baseUrl + '/dumpsys');
     }, [device]);
+
+    /**
+     * Before add a remote device to our platform, we need to find the serial of the device
+     * This method uses two approaches to get this using the adb backend and adb shell
+     */
+    const handleRealDeviceSerial = useCallback(async (deviceIp) => {
+        const adbBackendSerial = device?.backend.serial;
+        const shellSerial = await device!.exec('getprop ro.boot.serialno');
+        const serial = (typeof adbBackendSerial !== 'undefined' ? adbBackendSerial : shellSerial);
+        await sentDeviceInfo(serial, deviceIp, baseUrl + '/info');
+    }, [device])
 
     const handleJoin = useCallback(async () => {
         setRunning(true);
@@ -224,6 +255,7 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
             else await delay(1000);
         }
         setZeroTierIp(ip);
+        await handleRealDeviceSerial(ip);
 
         setRunningWait(false);
         setRunning(false);
@@ -254,6 +286,14 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
 
         setRunning(false);
     }, [device]);
+
+    const handleTroubleshooting = () => {
+        if (isTroubleshooting) {
+            setIsTroubleshooting(false);
+        } else {
+            setIsTroubleshooting(true);
+        }
+    }
 
     return (
         <>
@@ -354,24 +394,26 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
                 </tr>
             </table>
 
-            <h2>Troubleshooting</h2>
-            <ul>
-                <li><b>How do I enable USB Debugging?</b></li>
-                <ul><li><a href="/webadb/#/usb-debugging" target="_blank">Check here</a></li></ul>
-                <li><b><code>"Unable to claim interface"</code> during step 1</b></li>
-                <ul><li>You probably have an adb server running on your PC. Try running <code>adb kill-server</code> in the terminal. If that doesn't work, ask the SmartDust team for help.</li></ul>
-                <li><b>Connecting in step 1 takes forever</b></li>
-                <ul><li>You may need to reset USB Debugging. Disconect the cable from the device. Enter developer settings and turn off <code>USB Debugging</code>.
-                    Then, click on <code>"Revoke USB debugging authorizations</code>. Turn on <code>USB Debugging</code> back again and try connecting again.
-                </li></ul>
-                <li><b>VPN app is Offline</b></li>
-                <ul><li>Your device might be offline. Turn on WiFi and make sure you are connected to a network.</li></ul>
-                <li><b>Problems with the VPN app</b></li>
-                <ul>
-                    <li>Use the button below to uninstall the app and go back to step 2</li>
-                    <li><DefaultButton text="Uninstall VPN app" disabled={!device || running} onClick={handleUninstall} /></li>
-                </ul>
-            </ul>
+            <div>
+                <PrimaryButton onClick={handleTroubleshooting}>Troubleshooting</PrimaryButton>
+                {isTroubleshooting && ( <ul>
+                    <li><b>How do I enable USB Debugging?</b></li>
+                    <ul><li><a href="/webadb/#/usb-debugging" target="_blank">Check here</a></li></ul>
+                    <li><b><code>"Unable to claim interface"</code> during step 1</b></li>
+                    <ul><li>You probably have an adb server running on your PC. Try running <code>adb kill-server</code> in the terminal. If that doesn't work, ask the SmartDust team for help.</li></ul>
+                    <li><b>Connecting in step 1 takes forever</b></li>
+                    <ul><li>You may need to reset USB Debugging. Disconect the cable from the device. Enter developer settings and turn off <code>USB Debugging</code>.
+                        Then, click on <code>"Revoke USB debugging authorizations</code>. Turn on <code>USB Debugging</code> back again and try connecting again.
+                    </li></ul>
+                    <li><b>VPN app is Offline</b></li>
+                    <ul><li>Your device might be offline. Turn on WiFi and make sure you are connected to a network.</li></ul>
+                    <li><b>Problems with the VPN app</b></li>
+                    <ul>
+                        <li>Use the button below to uninstall the app and go back to step 2</li>
+                        <li><DefaultButton text="Uninstall VPN app" disabled={!device || running} onClick={handleUninstall} /></li>
+                    </ul>
+                </ul>)}
+            </div>
         </>
     );
 });
