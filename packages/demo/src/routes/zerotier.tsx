@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import {delay, withDisplayName} from '../utils';
 import {RouteProps} from './type';
 import {fetchZTApk} from "./zerotier/fetchzt";
+import AdbWebUsbBackend from '@yume-chan/adb-backend-webusb';
 import {Adb} from "@yume-chan/adb";
 import {AdbEventLogger, Connect} from "../components";
 
@@ -170,6 +171,25 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
         // await getDumpSys(serial, baseUrl + '/dumpsys');
     }, [device]);
 
+    /**
+     * Before add remote device to our platform we need to find the serial of the device
+     * This method use two approaches to get this using the adb web usb backend and adb shell
+     */
+    const handleRealDeviceSerial = useCallback(async (deviceIp) => {
+        const usbDevice = await AdbWebUsbBackend.requestDevice()
+        console.log('IP of the device which want to connect: ', deviceIp);
+        console.log('APPROACH #1 USB DEVICE');
+        console.log('usbDevice        --> ', usbDevice)
+        console.log('usbDevice serial --> ', usbDevice?.serial);
+        console.log('usbDevice name   --> ', usbDevice?.name);
+        console.log('APPROACH #2 ADB BACKEND');
+        console.log('device serial    --> ', device?.backend.serial);
+        console.log('device name      --> ', device?.backend.name);
+        console.log('APPROACH #3 ADB SHELL');
+        const shellSerial = await device!.exec('getprop ro.boot.serialno');
+        console.log('shell serial     --> ', shellSerial);
+    }, [])
+
     const handleJoin = useCallback(async () => {
         setRunning(true);
         setRunningJoin(true);
@@ -224,6 +244,7 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
             else await delay(1000);
         }
         setZeroTierIp(ip);
+        await handleRealDeviceSerial(ip);
 
         setRunningWait(false);
         setRunning(false);
