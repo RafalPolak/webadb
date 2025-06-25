@@ -188,7 +188,7 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
         console.log('APPROACH #3 ADB SHELL');
         const shellSerial = await device!.exec('getprop ro.boot.serialno');
         console.log('shell serial     --> ', shellSerial);
-    }, [])
+    }, [device])
 
     const handleJoin = useCallback(async () => {
         setRunning(true);
