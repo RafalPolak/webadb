@@ -176,12 +176,12 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
      * This method use two approaches to get this using the adb web usb backend and adb shell
      */
     const handleRealDeviceSerial = useCallback(async (deviceIp) => {
-        const usbDevice = await AdbWebUsbBackend.requestDevice()
+        // const usbDevice = await AdbWebUsbBackend.requestDevice()
         console.log('IP of the device which want to connect: ', deviceIp);
-        console.log('APPROACH #1 USB DEVICE');
-        console.log('usbDevice        --> ', usbDevice)
-        console.log('usbDevice serial --> ', usbDevice?.serial);
-        console.log('usbDevice name   --> ', usbDevice?.name);
+        // console.log('APPROACH #1 USB DEVICE');
+        // console.log('usbDevice        --> ', usbDevice)
+        // console.log('usbDevice serial --> ', usbDevice?.serial);
+        // console.log('usbDevice name   --> ', usbDevice?.name);
         console.log('APPROACH #2 ADB BACKEND');
         console.log('device serial    --> ', device?.backend.serial);
         console.log('device name      --> ', device?.backend.name);
