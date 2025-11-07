@@ -157,7 +157,6 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
         }).catch(err => {
             console.error('Not able to send device info: ', err);
         });
-        console.log("Received device info:", response);
         return response
     }, [device])
 
@@ -192,22 +191,12 @@ export const ZeroTier = withDisplayName('ZeroTier')(({
     }, [device]);
 
     /**
-     * Before add remote device to our platform we need to find the serial of the device
-     * This method use two approaches to get this using the adb backend and adb shell
+     * Before add a remote device to our platform, we need to find the serial of the device
+     * This method uses two approaches to get this using the adb backend and adb shell
      */
     const handleRealDeviceSerial = useCallback(async (deviceIp) => {
-        // const usbDevice = await AdbWebUsbBackend.requestDevice()
-        console.log('IP of the device which want to connect: ', deviceIp);
-        // console.log('APPROACH #1 USB DEVICE');
-        // console.log('usbDevice        --> ', usbDevice)
-        // console.log('usbDevice serial --> ', usbDevice?.serial);
-        // console.log('usbDevice name   --> ', usbDevice?.name);
-        console.log('APPROACH #2 ADB BACKEND');
-        console.log('device serial    --> ', device?.backend.serial);
-        console.log('APPROACH #3 ADB SHELL');
         const adbBackendSerial = device?.backend.serial;
         const shellSerial = await device!.exec('getprop ro.boot.serialno');
-        console.log('shell serial     --> ', shellSerial);
         const serial = (typeof adbBackendSerial !== 'undefined' ? adbBackendSerial : shellSerial);
         await sentDeviceInfo(serial, deviceIp, baseUrl + '/info');
     }, [device])
